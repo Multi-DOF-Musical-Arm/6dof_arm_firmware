@@ -4,12 +4,12 @@
 SerialServoController::SerialServoController() {
 }
 void SerialServoController::begin(int* servoStartPos, int* servoStartAngles, int* minAnglesCentDegrees, int* maxAnglesCentDegrees) {
-    servoBus.begin(&Serial2, 8,  // on TX pin 1
+    servoBus.begin(&Serial3, 8,  // on TX pin 1
                    2);           // use pin 2 as the TX flag for buffer
     servoBus.retry = 1;          // enforce synchronous real time
-    servoBus.debug(true);
+    servoBus.debug(false);
     for (uint8_t i = 0; i < 6; i++) {
-        servos[i] = new LX16AServo(&servoBus, i + 1);
+        servos[i] = new LX16AServo(&servoBus, i);
         servos[i]->calibrate(servoStartPos[i], servoStartAngles[i], minAnglesCentDegrees[i], maxAnglesCentDegrees[i]);
         Serial.println(i);
     }
@@ -21,8 +21,8 @@ void SerialServoController::loop() {
 	long start = millis();
     if (comms->newDataFromPC) {
         for (int i = 0; i < 6; i++) {
-            //Serial.print("Moving servo to");
-			//Serial.println(comms->lastCommand[i]);
+            Serial.print("Moving servo to ");
+			Serial.println(comms->lastCommand[i]);
             servos[i]->move_time_and_wait_for_sync(comms->lastCommand[i], SERVO_TIME_PARAM);
         }
 		servoBus.move_sync_start();

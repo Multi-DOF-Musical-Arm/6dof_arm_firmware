@@ -16,17 +16,26 @@ void CommunicationManager::getDataFromPC() {
     // receive data from PC and save it into inputBuffer
     bool isFirstByte = false;
     char* currentInputBuffer = moveCommandBuffer;
-    byte bytesRecvd = 0;
-    boolean readInProgress = false;
     int commandsRead = 0;
     while (usb_serial_available() > 0) {
         char x = (char)usb_serial_getchar();
         // the order of these IF clauses is significant
         if (x == endMarker) {
             readInProgress = false;
-            currentInputBuffer[bytesRecvd] = ',';
+            bytesRecvd++;
+            Serial.print("Bytes recieved: ");
+            Serial.println(bytesRecvd);
+            currentInputBuffer[bytesRecvd] = '\0';
             //Serial.print("<Received end byte>");
             commandsRead+=1;
+            if(readingMoveCommand){
+                readingMoveCommand = false;
+                processMoveCommand = true;
+            }
+            if(readingPrintCommand){
+                readingPrintCommand = false;
+                processPrintCommand = true;
+            }
             //loop after 100 commands
             if(commandsRead>99)
                 break;
@@ -39,21 +48,23 @@ void CommunicationManager::getDataFromPC() {
                 //Serial.println(x);
                 if(x=='0'){
                     //Serial.println("was move command");
+                    readingMoveCommand = true;
                     currentInputBuffer = moveCommandBuffer;
-                    processMoveCommand = true;
                 }
                 else if (x=='1'){
-                    processPrintCommand = true;
+                    readingPrintCommand = true;
                     currentInputBuffer = printCommandBuffer;
                 }
             }
             currentInputBuffer[bytesRecvd] = x;
-            //Serial.print("Received byte: ");
-            //Serial.println(x);
+            Serial.print("Received byte: ");
+            Serial.println(x);
             bytesRecvd++;
             if (bytesRecvd == BUFF_SIZE) {
                 bytesRecvd = BUFF_SIZE - 1;
             }
+            Serial.print("Bytes recieved: ");
+            Serial.println(bytesRecvd);
         }
 
         if (x == startMarker) {
@@ -68,39 +79,32 @@ void CommunicationManager::getDataFromPC() {
 void CommunicationManager::parseData() {
     // split the data into its parts
     if(processMoveCommand){
-        //Serial.println("In process move command");
+        Serial.println("In process move command");
+        Serial.println(moveCommandBuffer);
         processMoveCommand = false;
         char* inputBuffer = moveCommandBuffer;
         char* strtokIndx;  // this is used by strtok() as an index
         strtokIndx = strtok(inputBuffer, ",");  // get the first part - the string
         uint8_t command = atoi(strtokIndx);
-        strtokIndx = strtok(NULL, ",");
-        lastCommand[0] = atoi(strtokIndx);
 
+        int i=0;
         strtokIndx = strtok(NULL, ",");
-        lastCommand[1] = atoi(strtokIndx);
-
-        strtokIndx = strtok(NULL, ",");
-        lastCommand[2] = atoi(strtokIndx);
-
-        strtokIndx = strtok(NULL, ",");
-        lastCommand[3] = atoi(strtokIndx);
-
-        strtokIndx = strtok(NULL, ",");
-        lastCommand[4] = atoi(strtokIndx);
-
-        strtokIndx = strtok(NULL, ",");
-        lastCommand[5] = atoi(strtokIndx);
+        while (strtokIndx != NULL){
+            Serial.println(i);
+            lastCommand[i] = atoi(strtokIndx);
+            strtokIndx = strtok(NULL, ",");
+            i++;
+        }
 
         newDataFromPC = true;
-        // Serial.print("lastCommand: ");
-        // Serial.print(lastCommand[0]);
-        // Serial.print(lastCommand[1]);
-        // Serial.print(lastCommand[2]);
-        // Serial.print(lastCommand[3]);
-        // Serial.print(lastCommand[4]);
-        // Serial.print(lastCommand[5]);
-        // Serial.println("");
+        Serial.println("lastCommand: ");
+        Serial.println(lastCommand[0]);
+        Serial.println(lastCommand[1]);
+        Serial.println(lastCommand[2]);
+        Serial.println(lastCommand[3]);
+        Serial.println(lastCommand[4]);
+        Serial.println(lastCommand[5]);
+        Serial.println("");
     }
     if (processPrintCommand){           
         processPrintCommand = false; 
