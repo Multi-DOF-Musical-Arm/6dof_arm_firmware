@@ -24,7 +24,7 @@ SerialServoController servoController;
 CommunicationManager communicationManager;
 
 unsigned long previousMillis = 0;
-const long interval = 100;
+const long interval = 1;
 
 void setup(){
 	Serial.begin(9600);

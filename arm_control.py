@@ -46,10 +46,12 @@ def cubic_trajectory(q0, qf, t0, tf, v0, vf):
 
 def get_pos():
     write_to_arm("<1>")
-    #time.sleep(0.05)
+    time.sleep(0.05)
     while True:
         data = teensy.readline()
         data = (data.decode("utf-8"))
+        if(data != ""):
+            print(data)
         if "<1" in data:
             break
 
@@ -63,7 +65,11 @@ def string_to_angles(cmd):
     angles = [float(i)*100 for i in cmd]
     return angles
 
-targets = [[-2760.00,3816.00,24.00,-2688.00,-5592.00,24.00],[-4536.00,-5256.00,7224.00,-6264.00,-3552.00,48.00],[-8592.00,-3000.00,72.00,11112.00,-2040.00,72.00],[0,0,0,0,0,0,0]]
+targets = [
+    [-3024.00,-6024.00,-9840.00,-3432.00,4272.00,0.00],
+    [696.00,-3384.00,-2400.00,-3096.00,-2688.00,0.00],
+    [7032.00,-9096.00,-11304.00,3912.00,-1944.00,0.00],
+    [0,0,0,0,0,0,0]]
 idx = 0
 while True:
     match current_state:
@@ -71,11 +77,13 @@ while True:
             # command = input("Enter command: ")
             # current_target = string_to_angles(command)
             current_target = targets[idx]
+            print(f"Current target: {current_target}")
             current_pos = get_pos()
             current_state = State.START_TRAJECTORY
         case State.START_TRAJECTORY:
             time_start = time.time()
-            dur = 2
+            print("Creating trajectory")
+            dur = 4
             end_time = time_start+dur
             j0 = cubic_trajectory(current_pos[0], current_target[0], 0, dur, 0, 0)
             j1 = cubic_trajectory(current_pos[1], current_target[1], 0, dur, 0, 0)
@@ -83,10 +91,12 @@ while True:
             j3 = cubic_trajectory(current_pos[3], current_target[3], 0, dur, 0, 0)
             j4 = cubic_trajectory(current_pos[4], current_target[4], 0, dur, 0, 0)
             j5 = cubic_trajectory(current_pos[5], current_target[5], 0, dur, 0, 0)
+            print("Created trajectory")
             current_state = State.RUN_TRAJECTORY
         case State.RUN_TRAJECTORY:
             time_now = time.time()
             if time_now>end_time:
+                print("Trajectory complete!")
                 current_state = State.GET_COMMAND
                 idx+=1
                 if idx>=len(targets):
@@ -101,6 +111,6 @@ while True:
             p4 = j4[0][0] + j4[1][0] * elapsed + j4[2][0] * pow(elapsed, 2) + j4[3][0] * pow(elapsed, 3)
             p5 = j5[0][0] + j5[1][0] * elapsed + j5[2][0] * pow(elapsed, 2) + j5[3][0] * pow(elapsed, 3)
             write_to_arm(angles_to_str([p0, p1, p2, p3, p4, p5]))
-            time.sleep(0.05)
+            time.sleep(0.01)
 
 

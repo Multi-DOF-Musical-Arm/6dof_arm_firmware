@@ -23,8 +23,8 @@ void CommunicationManager::getDataFromPC() {
         if (x == endMarker) {
             readInProgress = false;
             bytesRecvd++;
-            Serial.print("Bytes recieved: ");
-            Serial.println(bytesRecvd);
+            //Serial.print("Bytes recieved: ");
+            //Serial.println(bytesRecvd);
             currentInputBuffer[bytesRecvd] = '\0';
             //Serial.print("<Received end byte>");
             commandsRead+=1;
@@ -57,14 +57,14 @@ void CommunicationManager::getDataFromPC() {
                 }
             }
             currentInputBuffer[bytesRecvd] = x;
-            Serial.print("Received byte: ");
-            Serial.println(x);
+            //Serial.print("Received byte: ");
+            //Serial.println(x);
             bytesRecvd++;
             if (bytesRecvd == BUFF_SIZE) {
                 bytesRecvd = BUFF_SIZE - 1;
             }
-            Serial.print("Bytes recieved: ");
-            Serial.println(bytesRecvd);
+            //Serial.print("Bytes recieved: ");
+            //Serial.println(bytesRecvd);
         }
 
         if (x == startMarker) {
@@ -79,8 +79,8 @@ void CommunicationManager::getDataFromPC() {
 void CommunicationManager::parseData() {
     // split the data into its parts
     if(processMoveCommand){
-        Serial.println("In process move command");
-        Serial.println(moveCommandBuffer);
+        //Serial.println("In process move command");
+        //Serial.println(moveCommandBuffer);
         processMoveCommand = false;
         char* inputBuffer = moveCommandBuffer;
         char* strtokIndx;  // this is used by strtok() as an index
@@ -90,21 +90,21 @@ void CommunicationManager::parseData() {
         int i=0;
         strtokIndx = strtok(NULL, ",");
         while (strtokIndx != NULL){
-            Serial.println(i);
+            //Serial.println(i);
             lastCommand[i] = atoi(strtokIndx);
             strtokIndx = strtok(NULL, ",");
             i++;
         }
 
         newDataFromPC = true;
-        Serial.println("lastCommand: ");
-        Serial.println(lastCommand[0]);
-        Serial.println(lastCommand[1]);
-        Serial.println(lastCommand[2]);
-        Serial.println(lastCommand[3]);
-        Serial.println(lastCommand[4]);
-        Serial.println(lastCommand[5]);
-        Serial.println("");
+        // Serial.println("lastCommand: ");
+        // Serial.println(lastCommand[0]);
+        // Serial.println(lastCommand[1]);
+        // Serial.println(lastCommand[2]);
+        // Serial.println(lastCommand[3]);
+        // Serial.println(lastCommand[4]);
+        // Serial.println(lastCommand[5]);
+        // Serial.println("");
     }
     if (processPrintCommand){           
         processPrintCommand = false; 
