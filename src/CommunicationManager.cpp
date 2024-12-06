@@ -73,6 +73,7 @@ void CommunicationManager::getDataFromPC() {
             readInProgress = true;
             isFirstByte = true;
             //Serial.print("<Received start byte>");
+            //memset(currentInputBuffer, 0, BUFF_SIZE); // Clear the buffer
         }
     }
 }
@@ -95,6 +96,10 @@ void CommunicationManager::parseData() {
             strtokIndx = strtok(NULL, ",");
             i++;
         }
+
+        //Serial.print("Got commands for ");
+        //Serial.print(i);
+        //Serial.println(" servos");
 
         newDataFromPC = true;
         // Serial.println("lastCommand: ");

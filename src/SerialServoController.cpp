@@ -4,7 +4,7 @@
 SerialServoController::SerialServoController() {
 }
 void SerialServoController::begin(int* servoStartPos, int* servoStartAngles, int* minAnglesCentDegrees, int* maxAnglesCentDegrees) {
-    servoBus.begin(&Serial3, 8,  // on TX pin 1
+    servoBus.begin(&Serial2, 8,  // on TX pin 1
                    2);           // use pin 2 as the TX flag for buffer
     servoBus.retry = 1;          // enforce synchronous real time
     servoBus.debug(false);
@@ -22,7 +22,7 @@ void SerialServoController::loop() {
     if (comms->newDataFromPC) {
         for (int i = 0; i < 6; i++) {
             //Serial.print("Moving servo to ");
-			//Serial.println(comms->lastCommand[i]);
+		    //Serial.println(comms->lastCommand[i]);
             servos[i]->move_time_and_wait_for_sync(comms->lastCommand[i], SERVO_TIME_PARAM);
         }
 		servoBus.move_sync_start();
@@ -31,7 +31,7 @@ void SerialServoController::loop() {
 		if (time > 0)
 			delay(time);
 		else {
-			Serial.println("Real Time broken, took: " + String(took));
+			//Serial.println("Real Time broken, took: " + String(took));
 		}
         comms->newDataFromPC = false;
     }

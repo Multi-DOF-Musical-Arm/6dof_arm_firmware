@@ -27,7 +27,7 @@ def angles_to_str(angles):
         cmd+=str(int(angle))
         cmd+=","
     cmd=cmd[:-1]
-    cmd+=">"
+    cmd+=",0>"
     return cmd
 
 
@@ -47,7 +47,9 @@ def cubic_trajectory(q0, qf, t0, tf, v0, vf):
 def get_pos():
     write_to_arm("<1>")
     time.sleep(0.05)
-    while True:
+    while not teensy.in_waiting > 0:
+        time.sleep(0.01)
+    while teensy.in_waiting>0:
         data = teensy.readline()
         data = (data.decode("utf-8"))
         if(data != ""):
@@ -66,10 +68,10 @@ def string_to_angles(cmd):
     return angles
 
 targets = [
-    [-3024.00,-6024.00,-9840.00,-3432.00,4272.00,0.00],
-    [696.00,-3384.00,-2400.00,-3096.00,-2688.00,0.00],
-    [7032.00,-9096.00,-11304.00,3912.00,-1944.00,0.00],
-    [0,0,0,0,0,0,0]]
+    [-3024.00,-6024.00,-9840.00,-3432.00,4272.00,2000.00],
+    [696.00,-3384.00,-2400.00,-3096.00,-2688.00,2000.00],
+    [7032.00,-9096.00,-11304.00,3912.00,-1944.00,2000.00],
+    [0,0,0,0,0,0,2000]]
 idx = 0
 while True:
     match current_state:
@@ -83,7 +85,7 @@ while True:
         case State.START_TRAJECTORY:
             time_start = time.time()
             print("Creating trajectory")
-            dur = 4
+            dur = 2
             end_time = time_start+dur
             j0 = cubic_trajectory(current_pos[0], current_target[0], 0, dur, 0, 0)
             j1 = cubic_trajectory(current_pos[1], current_target[1], 0, dur, 0, 0)
@@ -91,6 +93,7 @@ while True:
             j3 = cubic_trajectory(current_pos[3], current_target[3], 0, dur, 0, 0)
             j4 = cubic_trajectory(current_pos[4], current_target[4], 0, dur, 0, 0)
             j5 = cubic_trajectory(current_pos[5], current_target[5], 0, dur, 0, 0)
+
             print("Created trajectory")
             current_state = State.RUN_TRAJECTORY
         case State.RUN_TRAJECTORY:
@@ -110,6 +113,7 @@ while True:
             p3 = j3[0][0] + j3[1][0] * elapsed + j3[2][0] * pow(elapsed, 2) + j3[3][0] * pow(elapsed, 3)
             p4 = j4[0][0] + j4[1][0] * elapsed + j4[2][0] * pow(elapsed, 2) + j4[3][0] * pow(elapsed, 3)
             p5 = j5[0][0] + j5[1][0] * elapsed + j5[2][0] * pow(elapsed, 2) + j5[3][0] * pow(elapsed, 3)
+            print(p5)
             write_to_arm(angles_to_str([p0, p1, p2, p3, p4, p5]))
             time.sleep(0.01)
 

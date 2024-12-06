@@ -4,10 +4,11 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.animation import FuncAnimation
 
 
-L1 = 0.2
-L2 = 2.0
-L3 = 2.0
-L4 = 0.5
+L1 = 0.03923
+L2 = 0.20399
+L3 = 0.236
+L4 = 0.14348
+L2_ANGULAR_OFFSET = 0.10472
 key_axis_rotation = 0
 
 
@@ -87,7 +88,7 @@ def forward_kinematics(q1, q2, q3, q4, q5, L1, L2, L3, L4):
     q1_q5 = q1+q5
     tool_x_dir = np.array([np.cos(q1_q5), np.sin(q1_q5), 0.0])
 
-    O5 = O4 + 0.5 * tool_x_dir  # 0.5 is an arbitrary length for visualization
+    O5 = O4 + 0.1 * tool_x_dir  # 0.1 is an arbitrary length for visualization
 
     return O0, O1, O2, O3, O4, O5
 
@@ -107,15 +108,15 @@ ax.set_zlabel('Z')
 ax.set_title('5-DOF Arm')
 ax.legend()
 
-ax.set_xlim([-2, 2])
-ax.set_ylim([-2, 2])
-ax.set_zlim([0, 3])
+ax.set_xlim([-0.5, 0.5])
+ax.set_ylim([-0.5, 0.5])
+ax.set_zlim([0, 1])
 
 def target_trajectory(frame):
     angle = 2 * np.pi * (frame / 100)
-    x_d = 1.0 + 0.5*np.cos(angle)
-    y_d = 1.0 + 0.5*np.sin(angle)
-    z_d = 1.0 + 0.5*np.sin(angle*2)
+    x_d = 0.15 + 0.1*np.cos(angle)
+    y_d = 0.15 + 0.1*np.sin(angle)
+    z_d = 0.15 + 0.1*np.sin(angle*2)
     return x_d, y_d, z_d
 
 def update(frame):
