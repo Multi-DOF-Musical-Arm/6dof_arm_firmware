@@ -9,7 +9,7 @@ def create_valid_midi(file_name):
     
     # Define the duration of notes and rest between them (in ticks)
     note_duration = 480  # One beat
-    rest_duration = 480  # One beat
+    rest_duration = 1440  # three beats
     time_between_notes = note_duration + rest_duration  # Total time per note
     
     # Middle C (C4) is MIDI note number 60
