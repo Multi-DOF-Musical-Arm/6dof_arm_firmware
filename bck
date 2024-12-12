@@ -3,7 +3,6 @@
 #########
 import mido
 from typing import Union
-import numpy as np
 KEY_SPACING_MM = 23.5  # Width of a key in millimeters
 MIDDLE_C_NOTE = 60     # MIDI note number for Middle C
 MAX_OCTAVE_SPAN = 12   # Number of semitones in one octave
@@ -14,14 +13,6 @@ LIFT_NOTE_TRAVEL_DURATION = 0.5
 
 PIANO_TRACK_NUMBER = 0
 STRING_TRACK_NUMBER = 1
-
-STRING_APPROACH_OFFSET_SECONDS = 0.5
-PLUCK_SWING_OFFSET_SECONDS = 0.2
-STRING_PLUCK_X = 100 # m
-STRING_PLUCK_Y = -200
-STRING_PLUCK_Z = 100
-JOINT4_NEUTRAL_ANGLE = 0
-PLUCK_ANGLE = np.pi/4
 
 def load_midi_file(file_path):
     """Load the MIDI file."""
@@ -111,7 +102,7 @@ def build_note_timeline(events):
     timeline = []
     active_notes = set()
     
-    # Track the time of the previous event and only add entries when time changes
+    # We'll track the time of the previous event and only add entries when time changes
     prev_time = None
     
     for event in events:
@@ -221,7 +212,7 @@ def validate_and_compute_positions_piano(segments) -> Union[list[Position], list
             
             height_mm = 0.0  # Arm at keyboard level when notes are played
         
-        # Arm speed limit in horizontal direction
+        # Condition (c): Arm speed limit in horizontal direction
         if prev_position is not None:
             time_diff = start_time - prev_time
             if time_diff > 0:
@@ -243,22 +234,18 @@ def validate_and_compute_positions_piano(segments) -> Union[list[Position], list
     return positions, errors
 
 class Waypoint:
-    def __init__(self, position_mm, height_mm, travel_time, arrival_time, joint4_angle = None, y_mm = None):
+    def __init__(self, position_mm, height_mm, travel_time, arrival_time):
         self.arrival_time = arrival_time
         self.position_mm = position_mm
         self.height_mm = height_mm
         self.travel_time = travel_time
-        self.joint4_angle = joint4_angle
-        self.y_mm = y_mm
 
     arrival_time = 0
     position_mm = 0
     height_mm = 0
     travel_time = 0
-    joint4_angle = None
-    y_mm = None
 
-def build_piano_trajectory_from_positions(positions: list[Position]):
+def build_trajectory_from_positions(positions: list[Position]):
     waypoints: list[Waypoint] = []
     if not positions:
         return waypoints
@@ -319,77 +306,11 @@ def build_piano_trajectory_from_positions(positions: list[Position]):
     return waypoints
 
 
-def validate_and_compute_waypoints_string(segments: list[dict]) -> tuple[list[Waypoint], list[str]]:
-    """
-    Validates and computes waypoints for plucking a string.
-    
-    Rules:
-    - No more than one note played at a time. If a segment has more than one note, record an error.
-    - For each valid segment with exactly one note:
-      (a) Move the arm to (STRING_PLUCK_X, STRING_PLUCK_Y, STRING_PLUCK_Z) at (note_time - APPROACH_OFFSET).
-      (b) Rotate joint4 to PLUCK_ANGLE at (note_time - PLUCK_SWING_OFFSET).
-      (c) At note_time, the string is plucked
-      (d) After the note, lift joint4 back to JOINT4_NEUTRAL_ANGLE.
-      
-    The function returns a list of Waypoints and a list of errors.
-    """
-    errors = []
-    waypoints = []
-    
-    # A helper to add waypoints and automatically compute travel time based on previous waypoint
-    def add_waypoint(arrival_time, x_mm, y_mm, z_mm, joint4_angle):
-        if waypoints:
-            travel_time = arrival_time - waypoints[-1].arrival_time
-        else:
-            travel_time = 0.0
-        waypoints.append(Waypoint(x_mm, z_mm, travel_time, arrival_time, joint4_angle, y_mm))
-    
-    prev_time = None
-    prev_x, prev_y, prev_z = None, None, None
-    prev_angle = JOINT4_NEUTRAL_ANGLE
-
-    for segment in segments:
-        start_time = segment['start_time']
-        notes = segment['notes']
-        
-        # Validate number of notes
-        if len(notes) > 1:
-            errors.append(f"More than one note played simultaneously at {start_time:.2f}s")
-            continue
-        
-        if len(notes) == 0:
-            # No note, do nothing
-            continue
-
-        # Exactly one note
-        # The note needs to be plucked at start_time.
-        
-        # Move to position above the string at (start_time - APPROACH_OFFSET)
-        approach_time = start_time - STRING_APPROACH_OFFSET_SECONDS
-        add_waypoint(approach_time, STRING_PLUCK_X, STRING_PLUCK_Y, STRING_PLUCK_Z, JOINT4_NEUTRAL_ANGLE)
-        
-        # Swing joint4 down at (start_time - PLUCK_SWING_OFFSET)
-        pluck_swing_time = start_time - PLUCK_SWING_OFFSET_SECONDS
-        add_waypoint(pluck_swing_time, STRING_PLUCK_X, STRING_PLUCK_Y, STRING_PLUCK_Z, PLUCK_ANGLE)
-        
-        # At start_time, the string is plucked.
-        # We can hold the position and angle steady at note_time.
-        add_waypoint(start_time, STRING_PLUCK_X, STRING_PLUCK_Y, STRING_PLUCK_Z, PLUCK_ANGLE)
-        
-        # After plucking, lift the joint4 back up. May need to move back as well?
-        release_time = start_time + 0.2 
-        add_waypoint(release_time, STRING_PLUCK_X, STRING_PLUCK_Y, STRING_PLUCK_Z, JOINT4_NEUTRAL_ANGLE)
-        
-        prev_time = start_time
-        prev_x, prev_y, prev_z = STRING_PLUCK_X, STRING_PLUCK_Y, STRING_PLUCK_Z
-        prev_angle = JOINT4_NEUTRAL_ANGLE
-    
-    return waypoints, errors
-
 ####
 #IK#
 ####
 
+import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.animation import FuncAnimation
@@ -491,15 +412,8 @@ def waypoints_to_joint_sets(waypoints : list[Waypoint]):
     result = []
     for waypoint in waypoints:
         joint_set = JointSet()
-        y = 100/1000
-        if(waypoint.y_mm is not None):
-            y = waypoint.y_mm/1000
-        q1, q2, q3 = inverse_kinematics(waypoint.position_mm/1000, y, (waypoint.height_mm+200)/1000, L1, L2, L3, True)
-        if waypoint.joint4_angle == None: # some instruments have hardcoded angles for 4&5
-            q4, q5 = compute_q4_q5(q1, q2, q3)
-        else:
-            q4 = waypoint.joint4_angle
-            q5 = 0
+        q1, q2, q3 = inverse_kinematics(waypoint.position_mm/1000, 100/1000, (waypoint.height_mm+200)/1000, L1, L2, L3, True)
+        q4, q5 = compute_q4_q5(q1, q2, q3)
         joint_set.joint_positions = [q1, q2, q3, q4, q5]
         joint_set.waypoint = waypoint
         result.append(joint_set)
@@ -602,7 +516,7 @@ def visualize_joint_sets(joint_sets):
         q1, q2, q3, q4, q5 = joint_set.joint_positions
 
         O0, O1, O2, O3, O4, O5 = forward_kinematics(q1, q2, q3, q4, q5, L1, L2, L3, L4)
-        #O0, O1, O2, O3, O4, O5 = forward_kinematics(0, 0, 0, 0, 0, L1, L2, L3, L4)
+
         # Update the arm segments
         arm_points = [(O0, O1), (O1, O2), (O2, O3), (O3, O4), (O4, O5)]
         for i, seg in enumerate(arm_points):
@@ -614,41 +528,26 @@ def visualize_joint_sets(joint_sets):
     anim = FuncAnimation(fig, update, frames=len(joint_sets), interval=50, blit=False)
     plt.show()
 
-def print_errors(errors):
+def main(file_path):
+    mid = load_midi_file(file_path)
+    events = extract_note_events(mid)
+    timelines = []
+    segments = []
+    for eventList in events:
+        timelines.append(build_note_timeline(eventList))
+        segments.append(build_segments(timelines[-1], mid.length))
+        if eventList[0]['track'] == PIANO_TRACK_NUMBER:
+            positions, errors = validate_and_compute_positions_piano(segments[-1])
+
+    waypoints = build_trajectory_from_positions(positions)
+    joint_sets = waypoints_to_joint_sets(waypoints)
+    # Output errors
     if errors:
         print("Validation Errors:")
         for error in errors:
             print(f"  - {error}")
     else:
         print("All conditions satisfied.")
-
-def main(file_path):
-    mid = load_midi_file(file_path)
-    events = extract_note_events(mid)
-    timelines = []
-    segments = []
-    positions = []
-    waypoints = []
-    joint_sets = []
-    for eventList in events:
-        timelines.append(build_note_timeline(eventList))
-        segments.append(build_segments(timelines[-1], mid.length))
-        
-        if eventList[0]['track'] == PIANO_TRACK_NUMBER:
-            trackPositions, errors = validate_and_compute_positions_piano(segments[-1])
-            print_errors(errors)
-            trackWaypoints = build_piano_trajectory_from_positions(trackPositions)
-            joint_sets.extend(waypoints_to_joint_sets(trackWaypoints))
-
-            #waypoints.extend(trackWaypoints)
-        elif eventList[0]['track'] == STRING_TRACK_NUMBER:
-            trackWaypoints, errors = validate_and_compute_waypoints_string(segments[-1])
-            print_errors(errors)
-            joint_sets.extend(waypoints_to_joint_sets(trackWaypoints))
-
-    
-    #joint_sets = waypoints_to_joint_sets(waypoints)
-    # Output errors
     
     # Output computed positions
     print("\nComputed Positions and Gripper Widths:")
